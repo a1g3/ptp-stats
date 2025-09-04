@@ -5,6 +5,7 @@ use std::fs::File;
 use std::io::{self, BufRead};
 use statrs::statistics::Distribution;
 use plotters::prelude::*;
+use std::path::PathBuf;
 
 fn create_offset_plot(data: &Vec<f64>, device_name: &str) -> Result<(), Box<dyn std::error::Error>> {
     create_plot(data, device_name, "Offset")
@@ -40,19 +41,29 @@ fn create_plot(data: &Vec<f64>, device_name: &str, plot_type: &str) -> Result<()
 }
 
 
-fn parse_file(path: &str, name: &str) -> io::Result<()> {
+fn parse_file(path: PathBuf, name: &str) -> io::Result<()> {
     let file = File::open(path)?;
     let reader = io::BufReader::new(file);
 
     let re = Regex::new(
-        r#"(?x)
+            r#"(?x)
             ^(?P<timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}-\d{2}:\d{2})\s+
-            \w+\s+ptp4l\[\d+\]:\s+ptp4l\[(?P<internal_ts>\d+\.\d+)\]:\s+
-            master\s+offset\s+(?P<offset>\d+)\s+s\d\s+
+            \w+\s+
+            ptp4l
+
+        \[\d+\]
+
+        :\s+
+            ptp4l
+
+        \[(?P<internal_ts>\d+\.\d+)\]
+
+        :\s+
+            master\s+offset\s+(?P<offset>[+-]?\d+)\s+s\d\s+
             freq\s+(?P<freq>[+-]?\d+)\s+
-            path\s+delay\s+(?P<delay>\d+)
-        "#
-    ).unwrap();
+            path\s+delay\s+(?P<delay>[+-]?\d+)
+            "#
+        ).unwrap();
 
     let mut offsets = Vec::new();
     let mut delays = Vec::new();
@@ -92,11 +103,16 @@ fn parse_file(path: &str, name: &str) -> io::Result<()> {
     Ok(())
 }
 fn main() {
-    let machines = [("Beta", "C:/Users/AGebhard/Downloads/beta.log"),
-                                                   ("Charlie", "C:/Users/AGebhard/Downloads/charlie.log"),
-                                                   ("Delta", "C:/Users/AGebhard/Downloads/delta.log"),
-                                                   ("Echo", "C:/Users/AGebhard/Downloads/echo.log")];
-    
+
+    let base_path = "/home/agebhard/Documents/repos/ptp-stats/data";
+
+    let machines = [
+        ("Beta", PathBuf::from(base_path).join("beta.log")),
+        ("Charlie", PathBuf::from(base_path).join("charlie.log")),
+        ("Delta", PathBuf::from(base_path).join("delta.log")),
+        ("Echo", PathBuf::from(base_path).join("echo.log")),
+    ];
+
     for (name, path) in machines {
         println!("{}", name);
 
