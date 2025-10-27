@@ -6,6 +6,7 @@ use std::io::{self, BufRead};
 use statrs::statistics::Distribution;
 use plotters::prelude::*;
 use std::path::PathBuf;
+use statrs::test::normality::shapiro_wilk;
 
 fn create_offset_plot(data: &Vec<f64>, device_name: &str) -> Result<(), Box<dyn std::error::Error>> {
     create_plot(data, device_name, "Offset")
@@ -87,6 +88,7 @@ fn parse_file(path: PathBuf, name: &str) -> io::Result<()> {
         println!("\t  Min: {:.2}", offset_data.min());
         println!("\t  Max: {:.2}", offset_data.max());
         println!("\t  Std Dev: {:.2}", offset_data.std_dev().unwrap());
+        
         let _ = create_offset_plot(&offsets, name);
 
         println!("\n\tDelay Stats:");
@@ -102,6 +104,28 @@ fn parse_file(path: PathBuf, name: &str) -> io::Result<()> {
 
     Ok(())
 }
+
+fn test() {
+    let (statistic, p_value) = match shapiro_wilk(&data) {
+        Ok(result) => result,
+        Err(e) => {
+            eprintln!("Error performing Shapiro-Wilk test: {}", e);
+            return;
+        }
+    };
+
+    println!("Shapiro-Wilk Test Statistic: {:.4}", statistic);
+    println!("P-value: {:.4}", p_value);
+
+    // Interpret the results (typical significance level of 0.05)
+    let alpha = 0.05;
+    if p_value > alpha {
+        println!("The data likely comes from a normal distribution (p > {:.2}).", alpha);
+    } else {
+        println!("The data does not likely come from a normal distribution (p <= {:.2}).", alpha);
+    }
+}
+
 fn main() {
 
     let base_path = "/home/agebhard/Documents/repos/ptp-stats/data";
