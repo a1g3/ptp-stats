@@ -1,4 +1,5 @@
 
+use normality::lilliefors;
 use regex::Regex;
 use statrs::statistics::{Data, Max, Min, Statistics};
 use std::fs::File;
@@ -6,7 +7,6 @@ use std::io::{self, BufRead};
 use statrs::statistics::Distribution;
 use plotters::prelude::*;
 use std::path::PathBuf;
-use statrs::test::normality::shapiro_wilk;
 
 fn create_offset_plot(data: &Vec<f64>, device_name: &str) -> Result<(), Box<dyn std::error::Error>> {
     create_plot(data, device_name, "Offset")
@@ -97,6 +97,9 @@ fn parse_file(path: PathBuf, name: &str) -> io::Result<()> {
         println!("\t  Max: {:.2}", delay_data.max());
         println!("\t  Std Dev: {:.2}", delay_data.std_dev().unwrap());
         let _ = create_delay_plot(&delays, name);
+
+        check_normality(&offsets, "Offset");
+        check_normality(&delays, "Delay");
         return Ok(());
     } else {
         println!("No valid offset or delay data found.");
@@ -105,25 +108,43 @@ fn parse_file(path: PathBuf, name: &str) -> io::Result<()> {
     Ok(())
 }
 
-fn test() {
-    let (statistic, p_value) = match shapiro_wilk(&data) {
-        Ok(result) => result,
-        Err(e) => {
-            eprintln!("Error performing Shapiro-Wilk test: {}", e);
-            return;
-        }
-    };
 
-    println!("Shapiro-Wilk Test Statistic: {:.4}", statistic);
-    println!("P-value: {:.4}", p_value);
-
-    // Interpret the results (typical significance level of 0.05)
-    let alpha = 0.05;
-    if p_value > alpha {
-        println!("The data likely comes from a normal distribution (p > {:.2}).", alpha);
-    } else {
-        println!("The data does not likely come from a normal distribution (p <= {:.2}).", alpha);
+fn check_normality(data: &Vec<f64>, label: &str) {
+    if data.len() < 10 {
+        println!("\t  Not enough samples for normality analysis.");
+        return;
     }
+
+    let mean = data.mean();
+    let std = data.std_dev();
+
+    // Percentiles
+    let mut sorted = data.clone();
+    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+
+    let p95 = sorted[(0.95 * sorted.len() as f64) as usize];
+    let p99 = sorted[(0.99 * sorted.len() as f64) as usize];
+
+    let z99 = (p99 - mean) / std;
+
+    println!("\t{} Normality Diagnostics:", label);
+    println!("\t  P95: {:.2}", p95);
+    println!("\t  P99: {:.2}", p99);
+    println!("\t  (P99 - μ)/σ: {:.2}", z99);
+
+
+    let result = lilliefors(sorted);
+    match result {
+        Ok(res) => {
+            println!("\t  Lilliefors Test: p-value = {:.4}", res.p_value);
+        }
+        Err(err) => {
+            println!("\t  Lilliefors Test Error: {:?}", err);
+        }
+    }
+
+    return;
+
 }
 
 fn main() {

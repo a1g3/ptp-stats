@@ -1,6 +1,8 @@
 import re
 import numpy as np
 import matplotlib.pyplot as plt
+import statsmodels.api as sm
+from statsmodels.graphics import tsaplots
 import os
 from scipy import stats  # Importing the stats module from scipy
 
@@ -26,21 +28,6 @@ def create_plot(data, device_name, plot_type):
     plt.grid()
     plt.savefig(filename)
     plt.close()
-
-def run_shapiro_wilk(data, label):
-    """Runs the Shapiro-Wilk Test and prints the results."""
-    if len(data) < 3:  # Shapiro-Wilk requires a minimum of 3 samples
-        print(f"\t  Not enough data to perform Shapiro-Wilk test for {label}.")
-        return
-    
-    stat, p_value = stats.shapiro(data)
-    print(f"\t  Shapiro-Wilk Test for {label}:")
-    print(f"\t    Statistic: {stat:.4f}, p-value: {p_value:.4f}")
-    
-    if p_value > 0.05:
-        print("\t    Sample appears to be normally distributed.")
-    else:
-        print("\t    Sample does NOT appear to be normally distributed.")
 
 def run_mannwhiteneyu_test(data1, data2, label):
     stat, p_value = stats.mannwhitneyu(data1, data2)
@@ -78,24 +65,42 @@ def parse_file(path: str, name: str) -> tuple[np.ndarray, np.ndarray] | None:
 
         print(f"\tOffset Stats:")
         print(f"\t  Mean: {np.mean(offset_data):.2f}")
+        print(f"\t  Median: {np.median(offset_data):.2f}")
         print(f"\t  Min: {np.min(offset_data):.2f}")
         print(f"\t  Max: {np.max(offset_data):.2f}")
         print(f"\t  Std Dev: {np.std(offset_data):.2f}")
-        run_shapiro_wilk(offset_data, "Offsets")  # Running Shapiro-Wilk Test on offsets
         create_offset_plot(offset_data, name)
 
         print(f"\n\tDelay Stats:")
         print(f"\t  Mean: {np.mean(delay_data):.2f}")
+        print(f"\t  Median: {np.median(delay_data):.2f}")
         print(f"\t  Min: {np.min(delay_data):.2f}")
         print(f"\t  Max: {np.max(delay_data):.2f}")
         print(f"\t  Std Dev: {np.std(delay_data):.2f}")
-        run_shapiro_wilk(delay_data, "Delays")  # Running Shapiro-Wilk Test on delays
         create_delay_plot(delay_data, name)
 
         return offset_data, delay_data
     else:
         print("No valid offset or delay data found.")
         return None
+
+def run_correlation(data1, label):
+    #data1 = data1[1000:]
+    X = np.arange(1, len(data1)+1)
+    y = np.array(data1)
+    X = sm.add_constant(X)
+    model = sm.OLS(y, X).fit()
+    print(model.summary())
+
+    tsaplots.plot_acf(data1, lags=60)
+    plt.title("")
+    plt.xlabel("Lags")
+    plt.ylabel("Autocorrelation")
+    plt.savefig(f"plots/{label.replace(' ', '_').lower()}_autocorrelation.png")
+    plt.close()
+
+    lb_test = sm.stats.acorr_ljungbox(data1, lags=[10, 20, 50], return_df=True)
+    print(lb_test)
 
 def main(control_path, experimental_path=None):
     control_machines = [
@@ -144,9 +149,14 @@ def main(control_path, experimental_path=None):
             print()
             run_mannwhiteneyu_test(control_offset_data[name], experimental_offset_data[name], f"{name} Offsets")
             print("")
-            print(f"Comparing Control vs Experimental for {name} Delays:")
-            run_mannwhiteneyu_test(control_delay_data[name], experimental_delay_data[name], f"{name} Delays")
-            print("")
+            #print(f"Comparing Control vs Experimental for {name} Delays:")
+            #run_mannwhiteneyu_test(control_delay_data[name], experimental_delay_data[name], f"{name} Delays")
+            #print("")
+    else:
+        for name in control_offset_data.keys():
+            print(f"Comparing Control vs Experimental for {name} Offsets:")
+            print()
+            run_correlation(control_offset_data[name], f"{name} Offsets")
 
 if __name__ == "__main__":
     import sys

@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+normality = "3.0.0"
 plotters = "0.3.7"
 regex = "1.11.2"
 statrs = "0.18.0"
+velociplot = "0.1.0"
