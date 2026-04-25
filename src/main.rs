@@ -1,7 +1,6 @@
 
-use normality::lilliefors;
 use regex::Regex;
-use statrs::statistics::{Data, Max, Min, Statistics};
+use statrs::statistics::{Data, Max, Median, Min, Statistics};
 use std::fs::File;
 use std::io::{self, BufRead};
 use statrs::statistics::Distribution;
@@ -85,6 +84,7 @@ fn parse_file(path: PathBuf, name: &str) -> io::Result<()> {
 
         println!("\tOffset Stats:");
         println!("\t  Mean: {:.2}", offset_data.mean().unwrap());
+        println!("\t  Median: {:.2}", offset_data.median());
         println!("\t  Min: {:.2}", offset_data.min());
         println!("\t  Max: {:.2}", offset_data.max());
         println!("\t  Std Dev: {:.2}", offset_data.std_dev().unwrap());
@@ -93,58 +93,18 @@ fn parse_file(path: PathBuf, name: &str) -> io::Result<()> {
 
         println!("\n\tDelay Stats:");
         println!("\t  Mean: {:.2}", delay_data.mean().unwrap());
+        println!("\t  Median: {:.2}", delay_data.median());
         println!("\t  Min: {:.2}", delay_data.min());
         println!("\t  Max: {:.2}", delay_data.max());
         println!("\t  Std Dev: {:.2}", delay_data.std_dev().unwrap());
         let _ = create_delay_plot(&delays, name);
 
-        check_normality(&offsets, "Offset");
-        check_normality(&delays, "Delay");
         return Ok(());
     } else {
         println!("No valid offset or delay data found.");
     }
 
     Ok(())
-}
-
-
-fn check_normality(data: &Vec<f64>, label: &str) {
-    if data.len() < 10 {
-        println!("\t  Not enough samples for normality analysis.");
-        return;
-    }
-
-    let mean = data.mean();
-    let std = data.std_dev();
-
-    // Percentiles
-    let mut sorted = data.clone();
-    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
-
-    let p95 = sorted[(0.95 * sorted.len() as f64) as usize];
-    let p99 = sorted[(0.99 * sorted.len() as f64) as usize];
-
-    let z99 = (p99 - mean) / std;
-
-    println!("\t{} Normality Diagnostics:", label);
-    println!("\t  P95: {:.2}", p95);
-    println!("\t  P99: {:.2}", p99);
-    println!("\t  (P99 - μ)/σ: {:.2}", z99);
-
-
-    let result = lilliefors(sorted);
-    match result {
-        Ok(res) => {
-            println!("\t  Lilliefors Test: p-value = {:.4}", res.p_value);
-        }
-        Err(err) => {
-            println!("\t  Lilliefors Test Error: {:?}", err);
-        }
-    }
-
-    return;
-
 }
 
 fn main() {
