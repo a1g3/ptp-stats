@@ -1,0 +1,33 @@
+1. Generate ED25519 Key
+    openssl genpkey -algorithm ED25519 -out ca.key
+
+    OR
+
+    openssl ecparam -name prime256v1 -genkey -noout -out ca.key
+3. Generate Certificate config
+    [req]
+    distinguished_name = req_distinguished_name
+    req_extensions = v3_req
+    prompt = no
+
+    [req_distinguished_name]
+    CN = example.com
+
+    [v3_req]
+    subjectAltName = @alt_names
+
+    [alt_names]
+    DNS.1 = example.com
+    DNS.2 = www.example.com
+    IP.1 = 192.168.1.1
+
+2. Generate CA Certificate
+    openssl req -new -x509 -days 365 -key ca.key -out ca.pem -subj "/CN=example.com" -config openssl.cnf
+    
+
+1. Generate ED25519 Key
+    openssl ecparam -name prime256v1 -genkey -noout -out alpha.pem
+2. Generate CSR
+    openssl req -new -key example.com.key -out example.com.csr -config openssl.conf
+3. Sign certificate with CA
+    openssl x509 -req -in alpha.csr -CA ca.pem -CAkey ca.key -out alpha.crt -days 365 -sha256 -extfile openssl.conf -extensions v3_req
